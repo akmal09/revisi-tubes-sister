@@ -15,7 +15,7 @@
 #define sensorGas 35 
 #define sensorPir 27 
 #define led 26
-#define timeSeconds 10
+#define waktuCekAdaOrang 10
 #define BOTtoken "5928085070:AAG-z6qotjALbmB2Ne83aEbqHQQgBZPvFMQ"  // your Bot Token (Get from Botfather)
 
 #include <UniversalTelegramBot.h>   // Universal Telegram Bot Library written by Brian Lough: https://github.com/witnessmenow/Universal-Arduino-Telegram-Bot
@@ -70,7 +70,7 @@ BLYNK_CONNECTED()
 void IRAM_ATTR detectsMovement() {
   Serial.println("MOTION DETECTED!!!");
   digitalWrite(led, HIGH);
-  Serial.println("terdeteksi ada");
+  cekOrang = "Ada Orang"
   startTimer = true;
   lastTrigger = millis();
 }
@@ -152,7 +152,7 @@ void loop()
   timer.run();
   
   now = millis();
-  if(startTimer && (now - lastTrigger > (timeSeconds*1000))) {
+  if(startTimer && (now - lastTrigger > (waktuCekAdaOrang*1000))) {
     Serial.println("Motion stopped...");
     digitalWrite(led, LOW);
     startTimer = false;
