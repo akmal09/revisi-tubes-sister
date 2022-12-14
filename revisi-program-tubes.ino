@@ -15,8 +15,10 @@
 #define sensorGas 35 
 #define sensorPir 27 
 #define led 26
-#define waktuCekAdaOrang 10
+#define buzzer 25
+#define waktuCekAdaOrang 30
 #define BOTtoken "5928085070:AAG-z6qotjALbmB2Ne83aEbqHQQgBZPvFMQ"  // your Bot Token (Get from Botfather)
+#include <LiquidCrystal_I2C.h>
 
 #include <UniversalTelegramBot.h>   // Universal Telegram Bot Library written by Brian Lough: https://github.com/witnessmenow/Universal-Arduino-Telegram-Bot
 #include <ArduinoJson.h>
@@ -26,6 +28,7 @@
 #include <BlynkSimpleEsp32.h>
 #include <DHT.h>
 #include <MQ2.h>
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // Timer: Auxiliary variables
 unsigned long now = millis();
@@ -38,7 +41,7 @@ unsigned long startMillis;
 unsigned long currentMillis;
 // Your WiFi credentials.
 // Set password to "" for open networks.
-char ssid[] = "Kosan Maba";
+char ssid[] = "Redmi";
 char pass[] = "12345678";
 
 BlynkTimer timer;
@@ -51,7 +54,7 @@ int fireSensorValue;
 int pirSensorValue;
 String cekOrang = "Tidak Ada Orang";
 String cekApi = "KOMPOR MATI";
-String cekKompor = "KOMPOR AMAN";
+String cekGas = "GAS AMAN";
 String chat_id;
 WiFiClientSecure client;
 UniversalTelegramBot bot(BOTtoken, client);
@@ -70,7 +73,7 @@ BLYNK_CONNECTED()
 void IRAM_ATTR detectsMovement() {
   Serial.println("MOTION DETECTED!!!");
   digitalWrite(led, HIGH);
-  cekOrang = "Ada Orang"
+  cekOrang = "Ada Orang";
   startTimer = true;
   lastTrigger = millis();
 }
@@ -85,25 +88,32 @@ void myTimerEvent()
   fireSensorValue = digitalRead(sensorApi);
   pirSensorValue = digitalRead(sensorPir);
   
-  readLpgValue = mq2.readLPG();
+  readLpgValue = analogRead(sensorGas);
   Serial.println(readLpgValue);
-  if(readLpgValue > 0.1){
-      cekKompor = "MATIKAN KOMPOR";
+  if(readLpgValue > 1000){
+      cekGas = "GAS BOCOR";
   }else{
-      cekKompor = "KOMPOR AMAN";
+      cekGas = "Gas Aman";
   }
 
   if(fireSensorValue == 0){
-    cekApi = "KOMPOR MENYALA";    
+    cekApi = "Kompor Menyala";    
   }else{
-    cekApi = "KOMPOR MATI";
+    cekApi = "Kompor Mati";
   }
+  lcd.setCursor(0, 0);
+  lcd.print("Suhu : ");
+  lcd.print(temperatureValue);
+  lcd.setCursor(0, 1); 
+  lcd.print("Humidity : ");
+  lcd.print(humidityValue);
 
   Blynk.virtualWrite(V32, humidityValue);
   Blynk.virtualWrite(V34, temperatureValue);
   Blynk.virtualWrite(V33, cekApi);
   Blynk.virtualWrite(V27, cekOrang);
-  Blynk.virtualWrite(V26, cekKompor);
+  Blynk.virtualWrite(V26, cekGas);
+  Blynk.virtualWrite(V35, readLpgValue);
 }
 
 void handleNewMessages(int numNewMessages) {
@@ -114,7 +124,7 @@ void handleNewMessages(int numNewMessages) {
      for (int i=0; i<numNewMessages+1; i++) {
        String chat_id = String(bot.messages[i].chat_id);
        Serial.println(chat_id);
-       bot.sendMessage(chat_id, "MATIKAN KOMPOR DAN CABUT REGULATOR");
+       bot.sendMessage(chat_id, "GAS BOCOR MATIKAN SEGERA MATIKAN SEMUA ALAT LISTRIK DAN JANGAN PANIK !!!!!");
      }   
   }
 }
@@ -125,9 +135,12 @@ void setup()
   pinMode(sensorApi, INPUT);
   pinMode(sensorPir, INPUT);
   pinMode(led, OUTPUT);
+  pinMode(buzzer, OUTPUT);
   attachInterrupt(digitalPinToInterrupt(sensorPir), detectsMovement, RISING);
   dht.begin();
   mq2.begin();
+  lcd.init();
+  lcd.backlight();
   float lpgValue = analogRead(sensorGas);
   Serial.print("mulai baca ");
   Serial.println(lpgValue);
@@ -135,7 +148,7 @@ void setup()
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pass);
   #ifdef ESP32
-     client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
+  client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
   #endif
   while (WiFi.status() != WL_CONNECTED) {
    delay(1000);
@@ -164,10 +177,13 @@ void loop()
       int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
       Serial.print("dapet pesan ");
       Serial.println(numNewMessages);
-      if(cekKompor == "MATIKAN KOMPOR"){
+      if(cekGas == "GAS BOCOR"){
+        tone(buzzer, 293);
         Serial.println("masuk fungsi");
         handleNewMessages(numNewMessages);    
         startMillis = currentMillis;  
+      }else{
+        noTone(buzzer);
       }
     }    
   }
